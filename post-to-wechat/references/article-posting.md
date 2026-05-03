@@ -1,0 +1,95 @@
+# 文章发表
+
+将 markdown 文章发布到微信公众号，并支持完整排版。
+
+## 用法
+
+```bash
+# 发布 markdown 文章
+${BUN_X} ./scripts/wechat-article.ts --markdown article.md
+
+# 指定主题
+${BUN_X} ./scripts/wechat-article.ts --markdown article.md --theme grace
+
+# 禁用普通外部链接的底部引用
+${BUN_X} ./scripts/wechat-article.ts --markdown article.md --no-cite
+
+# 使用明确选项
+${BUN_X} ./scripts/wechat-article.ts --markdown article.md --author "作者名" --summary "摘要"
+```
+
+## 参数
+
+| 参数 | 说明 |
+|-----------|-------------|
+| `--markdown <path>` | 要转换并发布的 Markdown 文件 |
+| `--theme <name>` | 主题：default、grace、simple、modern |
+| `--no-cite` | 保留普通外部链接为行内链接，不转换为底部引用 |
+| `--title <text>` | 覆盖标题（默认从 markdown 自动提取） |
+| `--author <name>` | 作者名 |
+| `--summary <text>` | 文章摘要 |
+| `--html <path>` | 预渲染 HTML 文件（markdown 的替代输入） |
+| `--profile <dir>` | Chrome profile 目录 |
+
+## Markdown 格式
+
+```markdown
+---
+title: 文章标题
+author: 作者名
+---
+
+# 标题（会成为文章标题）
+
+包含 **粗体** 和 *斜体* 的普通段落。
+
+## 小节标题
+
+![图片描述](./image.png)
+
+- 列表项 1
+- 列表项 2
+
+> 引用文字
+
+[链接文字](https://example.com)
+```
+
+Markdown 模式默认将普通外部链接转换为底部引用，以便输出更适配微信。使用 `--no-cite` 可禁用该行为。
+
+## 图片处理
+
+1. **解析**：将 markdown 中的图片替换为 `WECHATIMGPH_N`
+2. **渲染**：生成包含文本占位符的 HTML
+3. **粘贴**：将 HTML 内容粘贴到微信编辑器
+4. **替换**：对每个占位符：
+   - 找到并选中占位符文本
+   - 滚动到可见位置
+   - 按 Backspace 删除占位符
+   - 从剪贴板粘贴图片
+
+## 脚本
+
+| 脚本 | 用途 |
+|--------|---------|
+| `wechat-article.ts` | 主要文章发布脚本 |
+| `md-to-wechat.ts` | 将 Markdown 转为带占位符的 HTML |
+| `md/render.ts` | 带主题的 Markdown 渲染 |
+
+## 示例会话
+
+```
+用户：/post-to-wechat --markdown /tmp/post-to-wechat/YYYY-MM-DD/slug/article.md
+
+Claude:
+1. 解析 markdown，找到正文图片
+2. 生成带占位符的 HTML
+3. 打开 Chrome，进入微信编辑器
+4. 粘贴 HTML 内容
+5. 对每张图片：
+   - 选中 WECHATIMGPH_1
+   - 滚动到可见位置
+   - 按 Backspace 删除
+   - 粘贴图片
+6. 报告：“已排版文章，并完成图片占位符替换。”
+```

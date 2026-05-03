@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prompt Optimizer"
+  short_description: "Rewrite prompts and wait for confirmation"
+  default_prompt: "Use $prompt-optimizer to optimize this prompt and ask for confirmation before running it."

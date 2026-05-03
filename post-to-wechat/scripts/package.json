@@ -1,0 +1,14 @@
+{
+  "name": "post-to-wechat-scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "for f in ./*.test.ts; do bun test \"$f\" || exit 1; done"
+  },
+  "dependencies": {
+    "@jsquash/webp": "^1.5.0",
+    "baoyu-chrome-cdp": "^0.1.0",
+    "baoyu-md": "^0.1.0",
+    "jimp": "^1.6.0"
+  }
+}
