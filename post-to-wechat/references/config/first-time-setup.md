@@ -158,6 +158,8 @@ question: "偏好配置保存到哪里？"
 options:
   - label: "项目（推荐）"
     description: ".post-to-wechat/（仅当前项目）"
+  - label: "XDG"
+    description: "${XDG_CONFIG_HOME:-$HOME/.config}/post-to-wechat/（遵循 XDG 配置目录）"
   - label: "用户"
     description: "~/.post-to-wechat/（所有项目）"
 ```
@@ -167,6 +169,7 @@ options:
 | 选择 | 路径 | 作用域 |
 |--------|------|-------|
 | 项目 | `.post-to-wechat/EXTEND.md` | 当前项目 |
+| XDG | `${XDG_CONFIG_HOME:-$HOME/.config}/post-to-wechat/EXTEND.md` | 遵循 XDG 配置目录 |
 | 用户 | `~/.post-to-wechat/EXTEND.md` | 所有项目 |
 
 ## 设置完成后
@@ -177,6 +180,8 @@ options:
 4. 继续 Step 0（加载已保存的偏好配置）
 
 ## EXTEND.md 模板
+
+EXTEND.md 的 key 和布尔值大小写不敏感；建议仍按下列小写 key 写入，便于人工维护。
 
 ### 单账号（默认）
 

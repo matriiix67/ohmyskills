@@ -82,11 +82,11 @@ references/illustration-styles/<style>.md
 
 ```bash
 bun scripts/build-image-batch.ts \
-  --outline /tmp/post-to-wechat/YYYY-MM-DD/slug/imgs/outline.md \
-  --prompts /tmp/post-to-wechat/YYYY-MM-DD/slug/imgs/prompts \
+  --outline /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/outline.md \
+  --prompts /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/prompts \
   --styles-dir references/illustration-styles \
-  --output /tmp/post-to-wechat/YYYY-MM-DD/slug/imgs/batch.json \
-  --images-dir /tmp/post-to-wechat/YYYY-MM-DD/slug/imgs \
+  --output /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/batch.json \
+  --images-dir /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs \
   --min-images 7
 ```
 
@@ -117,9 +117,9 @@ bun scripts/build-image-batch.ts \
 默认推荐 API 发布：
 
 ```bash
-bun scripts/wechat-api.ts /tmp/post-to-wechat/YYYY-MM-DD/slug/article.md \
+bun scripts/wechat-api.ts /tmp/post-to-wechat/YYYY-MM-DD/<slug>/article.md \
   --theme default \
-  --cover /tmp/post-to-wechat/YYYY-MM-DD/slug/imgs/cover.png \
+  --cover /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/cover.png \
   --require-cover \
   --min-images 6
 ```
@@ -127,9 +127,9 @@ bun scripts/wechat-api.ts /tmp/post-to-wechat/YYYY-MM-DD/slug/article.md \
 发布前可 dry-run：
 
 ```bash
-bun scripts/wechat-api.ts /tmp/post-to-wechat/YYYY-MM-DD/slug/article.md \
+bun scripts/wechat-api.ts /tmp/post-to-wechat/YYYY-MM-DD/<slug>/article.md \
   --theme default \
-  --cover /tmp/post-to-wechat/YYYY-MM-DD/slug/imgs/cover.png \
+  --cover /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/cover.png \
   --require-cover \
   --min-images 6 \
   --dry-run
@@ -138,7 +138,7 @@ bun scripts/wechat-api.ts /tmp/post-to-wechat/YYYY-MM-DD/slug/article.md \
 浏览器发布用于需要登录会话或手动后台发布的场景：
 
 ```bash
-bun scripts/wechat-article.ts --markdown /tmp/post-to-wechat/YYYY-MM-DD/slug/article.md --theme default
+bun scripts/wechat-article.ts --markdown /tmp/post-to-wechat/YYYY-MM-DD/<slug>/article.md --theme default
 ```
 
 ## 关键流程约束

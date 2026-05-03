@@ -191,6 +191,9 @@ async function uploadImage(
 
   // media/uploadimg 接口只返回 URL，material/add_material 返回 media_id
   if (uploadType === "body") {
+    if (!result.url) {
+      throw new Error(`Body image upload did not return a URL for ${uploadAsset.filename}`);
+    }
     return {
       url: toHttpsUrl(result.url),
       media_id: "",
@@ -307,7 +310,7 @@ async function uploadImagesInHtml(
         }
       }
     } catch (err) {
-      console.error(`[wechat-api] Failed to upload ${imagePath}:`, err);
+      throw new Error(`Failed to upload ${imagePath}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -342,7 +345,7 @@ async function uploadImagesInHtml(
         }
       }
     } catch (err) {
-      console.error(`[wechat-api] Failed to upload placeholder ${image.placeholder}:`, err);
+      throw new Error(`Failed to upload placeholder ${image.placeholder}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -438,14 +441,14 @@ function renderMarkdownWithPlaceholders(
   const mdToWechatScript = path.join(__dirname, "md-to-wechat.ts");
   const baseDir = path.dirname(markdownPath);
 
-  const args = ["-y", "bun", mdToWechatScript, markdownPath];
+  const args = [mdToWechatScript, markdownPath];
   if (title) args.push("--title", title);
   if (theme) args.push("--theme", theme);
   if (color) args.push("--color", color);
   if (!citeStatus) args.push("--no-cite");
 
   console.error(`[wechat-api] Rendering markdown with placeholders via md-to-wechat: ${theme}${color ? `, color: ${color}` : ""}, citeStatus: ${citeStatus}`);
-  const result = spawnSync("npx", args, {
+  const result = spawnSync(process.execPath, args, {
     stdio: ["inherit", "pipe", "pipe"],
     cwd: baseDir,
   });
@@ -534,7 +537,7 @@ interface CliArgs {
   title?: string;
   author?: string;
   summary?: string;
-  theme: string;
+  theme?: string;
   color?: string;
   cover?: string;
   minImages: number;
@@ -552,7 +555,6 @@ function parseArgs(argv: string[]): CliArgs {
     filePath: "",
     isHtml: false,
     articleType: "news",
-    theme: "default",
     minImages: 0,
     requireCover: false,
     citeStatus: true,
@@ -565,6 +567,8 @@ function parseArgs(argv: string[]): CliArgs {
       const t = argv[++i]!.toLowerCase();
       if (t === "news" || t === "newspic") {
         args.articleType = t;
+      } else {
+        throw new Error(`Invalid --type: ${t}`);
       }
     } else if (arg === "--title" && argv[i + 1]) {
       args.title = argv[++i];
@@ -588,8 +592,8 @@ function parseArgs(argv: string[]): CliArgs {
       args.citeStatus = false;
     } else if (arg === "--dry-run") {
       args.dryRun = true;
-    } else if (arg.startsWith("--") && argv[i + 1] && !argv[i + 1]!.startsWith("-")) {
-      i++;
+    } else if (arg.startsWith("--")) {
+      throw new Error(`Unknown option: ${arg}`);
     } else if (!arg.startsWith("-")) {
       args.filePath = arg;
     }
@@ -618,6 +622,10 @@ function extractHtmlTitle(html: string): string {
   const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
   if (h1Match) return h1Match[1]!.replace(/<[^>]+>/g, "").trim();
   return "";
+}
+
+function countHtmlImages(html: string): number {
+  return [...html.matchAll(/<img\b[^>]*\ssrc=["']([^"']+)["'][^>]*>/gi)].length;
 }
 
 function isRemoteUrl(value: string): boolean {
@@ -678,7 +686,13 @@ function validatePublishInputs(options: {
 }
 
 async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
+  let args: CliArgs;
+  try {
+    args = parseArgs(process.argv.slice(2));
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
 
   const filePath = path.resolve(args.filePath);
   if (!fs.existsSync(filePath)) {
@@ -694,10 +708,15 @@ async function main(): Promise<void> {
   let htmlContent: string;
   let frontmatter: Record<string, string> = {};
   let contentImages: ImageInfo[] = [];
+  let bodyImageCount = 0;
+  const extConfig = loadWechatExtendConfig();
+  const effectiveTheme = args.theme || extConfig.default_theme || "default";
+  const effectiveColor = args.color || extConfig.default_color;
 
   if (args.isHtml) {
     htmlPath = filePath;
     htmlContent = extractHtmlContent(htmlPath);
+    bodyImageCount = countHtmlImages(htmlContent);
     const mdPath = filePath.replace(/\.html$/i, ".md");
     if (fs.existsSync(mdPath)) {
       const mdContent = fs.readFileSync(mdPath, "utf-8");
@@ -725,10 +744,11 @@ async function main(): Promise<void> {
     if (!author) author = frontmatter.author || "";
     if (!digest) digest = frontmatter.digest || frontmatter.summary || frontmatter.description || "";
 
-    console.error(`[wechat-api] Theme: ${args.theme}${args.color ? `, color: ${args.color}` : ""}, citeStatus: ${args.citeStatus}`);
-    const rendered = renderMarkdownWithPlaceholders(filePath, args.theme, args.color, args.citeStatus, args.title);
+    console.error(`[wechat-api] Theme: ${effectiveTheme}${effectiveColor ? `, color: ${effectiveColor}` : ""}, citeStatus: ${args.citeStatus}`);
+    const rendered = renderMarkdownWithPlaceholders(filePath, effectiveTheme, effectiveColor, args.citeStatus, args.title);
     htmlPath = rendered.htmlPath;
     contentImages = rendered.contentImages;
+    bodyImageCount = contentImages.length;
     if (!title) title = rendered.title;
     if (!author) author = rendered.author;
     if (!digest) digest = rendered.summary;
@@ -754,7 +774,6 @@ async function main(): Promise<void> {
   if (digest) console.error(`[wechat-api] Digest: ${digest.slice(0, 50)}...`);
   console.error(`[wechat-api] Type: ${args.articleType}`);
 
-  const extConfig = loadWechatExtendConfig();
   if (!author && extConfig.default_author) author = extConfig.default_author;
 
   const coverPath = resolveNewsCoverPath({
@@ -767,7 +786,7 @@ async function main(): Promise<void> {
     validatePublishInputs({
       articleType: args.articleType,
       coverPath,
-      contentImageCount: contentImages.length,
+      contentImageCount: bodyImageCount,
       minImages: args.minImages,
       requireCover: args.requireCover,
     });
@@ -783,7 +802,10 @@ async function main(): Promise<void> {
       author: author || undefined,
       digest: digest || undefined,
       htmlPath,
+      theme: effectiveTheme,
+      color: effectiveColor || undefined,
       contentLength: htmlContent.length,
+      bodyImageCount: bodyImageCount || undefined,
       placeholderImageCount: contentImages.length || undefined,
     }, null, 2));
     return;

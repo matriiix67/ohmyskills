@@ -13,6 +13,7 @@ import {
 import { loadWechatExtendConfig } from './wechat-extend-config.ts';
 
 const WECHAT_URL = 'https://mp.weixin.qq.com/';
+const MAX_IMAGES = 9;
 
 interface MarkdownMeta {
   title: string;
@@ -160,6 +161,7 @@ export async function postToWeChat(options: WeChatBrowserOptions): Promise<void>
   if (!title) throw new Error('Title is required (use --title or --markdown)');
   if (!content) throw new Error('Content is required (use --content or --markdown)');
   if (images.length === 0) throw new Error('At least one image is required (use --image or --images)');
+  if (images.length > MAX_IMAGES) throw new Error(`WeChat贴图 supports at most ${MAX_IMAGES} images, got ${images.length}`);
 
   for (const img of images) {
     if (!fs.existsSync(img)) throw new Error(`Image not found: ${img}`);
@@ -703,6 +705,8 @@ async function main(): Promise<void> {
       submit = true;
     } else if (arg === '--profile' && args[i + 1]) {
       profileDir = args[++i];
+    } else if (arg.startsWith('--')) {
+      throw new Error(`Unknown option: ${arg}`);
     }
   }
 

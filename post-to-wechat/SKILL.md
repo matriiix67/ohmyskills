@@ -142,7 +142,7 @@ ${BUN_X} {baseDir}/scripts/wechat-browser.ts --title "标题" --content "内容"
 
 ### Step 0：加载偏好配置
 
-检查并加载 EXTEND.md（见上文“偏好配置”）。如果未找到，在提出任何其他问题前先完成首次设置。解析并缓存以下配置，供后续步骤使用：`default_theme`、`default_color`、`default_author`、`need_open_comment`、`only_fans_can_comment`、`illustration_style`、`illustration_density`、`illustration_image_count`、`illustration_watermark`、`illustration_watermark_position`、`illustration_language`。
+检查并加载 EXTEND.md（见上文“偏好配置”）。如果未找到，在提出任何其他问题前先完成首次设置。解析并缓存以下配置，供后续步骤使用：`default_theme`、`default_color`、`default_publish_method`、`default_author`、`need_open_comment`、`only_fans_can_comment`、`illustration_style`、`illustration_density`、`illustration_image_count`、`illustration_watermark`、`illustration_watermark_position`、`illustration_language`。
 
 ### Step 1：判断输入类型
 
@@ -200,26 +200,23 @@ ${BUN_X} {baseDir}/scripts/wechat-browser.ts --title "标题" --content "内容"
 
 **URL/X 流程的最低生成图片要求**：
 
-- 发布前至少生成 **7-11 张新图片**，除非用户当前请求明确要求更少。
+- URL/X 发布前必须生成 **1 张独立封面 + 至少 6 张正文插图**，总数至少 7 张；用户要求更少时也不得低于这个发布门禁。
 - 统计生成素材，不统计从 URL/X 帖子抓取的源图片。
 - 默认拆分：**1 张封面 + 随机 6-10 张正文插图**。
-- 请求确认时，推荐 `rich (7+)` 或明确的 `image_count >= 7`；如果 `minimal` 或 `balanced` 会产出少于 6 张生成图片，则不要推荐。
+- 自动发布模式下不请求确认；交互配图模式推荐 `rich (7+)` 或明确的 `image_count >= 7`，如果某个密度会产出少于 7 张总图或少于 6 张正文插图，则不要推荐。
 - 即使文章较短，也要通过组合封面、章节开场图、流程图、对比图、检查清单、引用卡片或总结卡片，创建 7-11 个有用素材。
 
 1. **生成封面和插图 prompt**
    - 按 `references/illustration-workflow.md` 分析改写后的中文草稿。
    - 将上述最低要求写入内置配图设置和 outline。
-   - 遵循它的确认策略，除非用户当前请求明确要求直接生成。
+   - URL/X 自动发布模式下不得再次询问；按 EXTEND.md、内容分析和默认规则自动选择。
    - 在生成图片前，于 `/tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/` 下创建 `outline.md` 和 `prompts/*.md`。
    - outline 必须列出至少 7 个生成素材，并包含 `cover.png`、正文插图文件名和插入位置。
 2. **生成图片**
-   - 图片生成必须逐个读取 `imgs/prompts/*.md` 文件，并解析其中的 `style` frontmatter。
-   - 对每个 prompt，必须读取对应的 `references/illustration-styles/<style>.md` 风格文件；如果该文件不存在，必须停下并报告缺失，不得凭记忆补写风格。
-   - 图片生成输入必须由已保存的 prompt 文件内容和对应 style 文件内容组成。
-   - 不得在调用图片生成时临场重写、摘要、扩写或替换 prompt/style；如发现 prompt 或 style 不合格，必须先更新对应文件，再读取更新后的文件生成图片。
-   - 每张图片必须能追溯到一个已保存的 prompt 文件，生成顺序应与 `imgs/outline.md` 一致。
-   - 如可用，使用 runtime 原生的 `imagegen` 后端。
-   - 多图批量生成时，可用完整命令从 `imgs/outline.md`、`imgs/prompts/` 和 `references/illustration-styles/` 生成 batch JSON：
+   - 按 `imgs/outline.md` 顺序处理；每张图必须读取对应的 `imgs/prompts/*.md`，并按其 `style` frontmatter 读取 `references/illustration-styles/<style>.md`。缺 prompt 或 style 时停止，不得凭记忆补写。
+   - 生成输入只能来自已保存的 prompt + style 文件；如需修改，先更新文件再重新读取，不得在调用图片生成时临场重写、摘要或替换。
+   - 默认使用 Codex `image_gen`；不可用时才使用其他 runtime 原生图片生成能力；仍不可用则停止，不得用占位图或跳过 Step 4。
+   - 批量生成时，可先用下列命令生成 batch JSON（该脚本只建任务，不生成图片）：
      ```bash
      ${BUN_X} {baseDir}/scripts/build-image-batch.ts \
        --outline /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/outline.md \
@@ -229,9 +226,7 @@ ${BUN_X} {baseDir}/scripts/wechat-browser.ts --title "标题" --content "内容"
        --images-dir /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs \
        --min-images 7
      ```
-   - 将生成素材移动/复制到文章工作区的 `imgs/` 目录。
-   - 在内置配图流程选择的位置插入 markdown 图片引用。
-   - dry-run/publish 前确认工作区至少包含 7 个生成图片文件。
+   - 生成素材必须保存到文章工作区 `imgs/`，并按内置配图流程插入 markdown。dry-run/publish 前确认 `imgs/cover.png` 存在，正文已插入至少 6 张 `imgs/` 下的新生成正文图，且不统计 URL/X 抓取源图。
 3. **继续发布**
    - 使用最终改写并配图的中文 markdown 作为 Step 5 的输入。
    - 对 API `news` 文章，通过 `--cover` 传入生成的封面图片。
@@ -255,8 +250,8 @@ ${BUN_X} {baseDir}/scripts/wechat-browser.ts --title "标题" --content "内容"
 
 | 字段 | 缺失时 → |
 |-------|-----------|
-| Title | 询问，或让用户按 Enter 从内容自动生成 |
-| Summary | Frontmatter `description` → `summary` → 询问或自动生成 |
+| Title | URL/X 自动发布时从内容自动生成；交互模式可询问或让用户按 Enter 自动生成 |
+| Summary | Frontmatter `description` → `summary` → URL/X 自动发布时自动生成；交互模式可询问 |
 | Author | CLI `--author` → frontmatter `author` → EXTEND.md `default_author` |
 
 自动生成规则：title = 第一个 H1/H2 或第一句话；summary = 第一段，截断到 120 个字符。
@@ -275,7 +270,7 @@ ${BUN_X} {baseDir}/scripts/wechat-browser.ts --title "标题" --content "内容"
 ${BUN_X} {baseDir}/scripts/wechat-api.ts <file> --theme <theme> [--color <color>] [--title <title>] [--summary <summary>] [--author <author>] [--cover <cover_path>] [--min-images <n>] [--require-cover] [--no-cite]
 ```
 
-始终传入 `--theme`，即使它是 `default`。只有当用户或 EXTEND.md 明确设置了颜色时，才传入 `--color`。
+CLI 未传 `--theme` / `--color` 时，脚本会按 EXTEND.md 默认值解析；执行者手动调用时可显式传入已解析值。
 
 URL/X 自动发布流程必须传入 `--cover /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/cover.png --require-cover --min-images 6`，用于校验独立封面和正文内至少 6 张生成插图。
 
@@ -318,42 +313,23 @@ ${BUN_X} {baseDir}/scripts/wechat-article.ts --html <html_file>
 → 管理草稿：https://mp.weixin.qq.com（登录后进入「内容管理」→「草稿箱」）
 
 创建的文件：
-[• /tmp/post-to-wechat/YYYY-MM-DD/slug/article.md（如果输入为纯文本或 URL/X）]
+[• /tmp/post-to-wechat/YYYY-MM-DD/<slug>/article.md（如果输入为纯文本或 URL/X）]
 [• translation/polish workflow files（如果 URL/X 来源需要中文处理）]
 [• rewrite-notes.md / 备选标题 / AI-trace 检查清单（如果执行了改写步骤）]
 [• imgs/outline.md 和 imgs/prompts/*.md（如果生成了插图）]
 [• imgs/*.png 或 imgs/*.jpg，用于封面和正文插图的生成/选定图片]
-[• slug.html（已转换）]
+[• .wechat-render/temp-article.html（发布脚本内部生成的中间 HTML，如有）]
 ```
-
-## 功能对比
-
-| 功能 | 图文 | 文章（API） | 文章（浏览器） |
-|---------|:---:|:---:|:---:|
-| 纯文本输入 | ✗ | ✓ | ✓ |
-| HTML 输入 | ✗ | ✓ | ✓ |
-| Markdown 输入 | 标题/内容 | ✓ | ✓ |
-| 多图 | ✓（最多 9 张） | ✓（正文内） | ✓（正文内） |
-| 主题 | ✗ | ✓ | ✓ |
-| 自动生成元数据 | ✗ | ✓ | ✓ |
-| 默认封面兜底（`imgs/cover.png`） | ✗ | ✓ | ✗ |
-| 评论控制 | ✗ | ✓ | ✗ |
-| 需要 Chrome | ✓ | ✗ | ✓ |
-| 需要 API 凭据 | ✗ | ✓ | ✗ |
-| 速度 | 中 | 快 | 慢 |
 
 ## 故障排查
 
 | 问题 | 修复方式 |
 |-------|-----|
-| 缺少 API 凭据 | 按 Step 5 的引导式设置处理 |
-| Access token 错误 | 验证凭据有效且未过期 |
-| 未登录（浏览器） | 首次运行会打开浏览器，扫码登录 |
-| 找不到 Chrome | 设置 `WECHAT_BROWSER_CHROME_PATH` |
-| 缺少标题/摘要 | 使用自动生成或手动提供 |
-| 没有封面图 | 添加 frontmatter cover，或将 `imgs/cover.png` 放入文章目录；URL/X 流程必须传 `--require-cover` 并使用独立封面 |
-| 评论默认值不正确 | 检查 EXTEND.md 中的 `need_open_comment` / `only_fans_can_comment` |
-| 粘贴失败 | 检查系统剪贴板权限 |
+| 缺少 API 凭据或 access token 错误 | 按 `references/api-setup.md` 配置并验证凭据 |
+| 浏览器未登录或找不到 Chrome | 扫码登录；必要时设置 `WECHAT_BROWSER_CHROME_PATH` |
+| 缺少标题、摘要或封面 | 自动生成标题/摘要；封面用 `--cover`、frontmatter 或 `imgs/cover.png`，URL/X 必须用独立封面 |
+| 图片数量不足或图片生成失败 | 停在 Step 4，补齐 `cover.png` 和至少 6 张正文新生成图后再发布 |
+| 粘贴失败 | 检查系统剪贴板和辅助功能权限 |
 
 ## 参考资料
 
@@ -368,7 +344,3 @@ ${BUN_X} {baseDir}/scripts/wechat-article.ts --html <html_file>
 | `references/illustration-style-presets.md` | type + style 预设组合 |
 | `references/api-setup.md` | 引导式凭据设置 |
 | `references/config/first-time-setup.md` | 首次 EXTEND.md 设置 |
-
-## 扩展支持
-
-通过 EXTEND.md 自定义配置。路径和支持的选项见“偏好配置”。

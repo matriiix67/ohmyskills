@@ -1,6 +1,7 @@
 import path from "node:path";
 import process from "node:process";
 import { access, readdir, readFile, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 type CliArgs = {
   outlinePath: string | null;
@@ -22,9 +23,13 @@ type OutlineEntry = {
   filename: string;
 };
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const SKILL_ROOT = path.resolve(__dirname, "..");
+
 function printUsage(): void {
   console.log(`Usage:
-  npx -y tsx scripts/build-image-batch.ts --outline imgs/outline.md --prompts imgs/prompts --styles-dir references/illustration-styles --output imgs/batch.json --images-dir imgs
+  bun scripts/build-image-batch.ts --outline /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/outline.md --prompts /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/prompts --styles-dir references/illustration-styles --output /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/batch.json --images-dir /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs
 
 Options:
   --outline <path>     Path to outline.md
@@ -33,8 +38,8 @@ Options:
   --output <path>      Path to output batch.json
   --images-dir <path>  Directory for generated images
   --min-images <n>     Fail if fewer than n image tasks are generated (optional)
-  --provider <name>    Provider for post-to-wechat image generation batch tasks (default: replicate)
-  --model <id>         Model for post-to-wechat image generation batch tasks (default: google/nano-banana-pro)
+  --provider <name>    Provider metadata for image generation batch tasks (default: imagegen)
+  --model <id>         Model metadata for image generation batch tasks (default: runtime-default)
   --ar <ratio>         Aspect ratio for all tasks (default: 16:9)
   --quality <level>    Quality for all tasks (default: 2k)
   --jobs <count>       Recommended worker count metadata (optional)
@@ -49,8 +54,8 @@ function parseArgs(argv: string[]): CliArgs {
     outputPath: null,
     imagesDir: null,
     minImages: 0,
-    provider: "replicate",
-    model: "google/nano-banana-pro",
+    provider: "imagegen",
+    model: "runtime-default",
     aspectRatio: "16:9",
     quality: "2k",
     jobs: null,
@@ -77,6 +82,8 @@ function parseArgs(argv: string[]): CliArgs {
       args.jobs = value ? parseInt(value, 10) : null;
     } else if (current === "--help" || current === "-h") {
       args.help = true;
+    } else if (current.startsWith("--")) {
+      throw new Error(`Unknown option: ${current}`);
     }
   }
   return args;
@@ -109,14 +116,36 @@ function parseOutline(content: string): OutlineEntry[] {
 async function findPromptFile(promptsDir: string, entry: OutlineEntry): Promise<string | null> {
   const files = await readdir(promptsDir);
   const prefix = String(entry.index).padStart(2, "0");
-  const match = files
+  const matches = files
     .sort()
-    .find((f) =>
+    .filter((f) =>
       f.startsWith(`${prefix}-`) &&
       f.endsWith(".md") &&
       !/(^|-)backup(?:-|\.|$)/i.test(f)
     );
-  return match ? path.join(promptsDir, match) : null;
+  if (matches.length > 1) {
+    throw new Error(`Multiple prompt files found for illustration ${entry.index}: ${matches.join(", ")}`);
+  }
+  return matches[0] ? path.join(promptsDir, matches[0]) : null;
+}
+
+function validateOutlineFilename(filename: string): void {
+  if (
+    path.isAbsolute(filename) ||
+    filename.includes("/") ||
+    filename.includes("\\") ||
+    filename.includes("..") ||
+    !/\.(png|jpe?g|webp)$/i.test(filename)
+  ) {
+    throw new Error(`Invalid outline filename: ${filename}`);
+  }
+}
+
+function assertOutsideSkillRepository(label: string, targetPath: string): void {
+  const resolved = path.resolve(targetPath);
+  if (resolved === SKILL_ROOT || resolved.startsWith(`${SKILL_ROOT}${path.sep}`)) {
+    throw new Error(`${label} must be outside the skill repository; use /tmp/post-to-wechat/YYYY-MM-DD/<slug>/...`);
+  }
 }
 
 function parsePromptStyle(content: string, promptFile: string): string {
@@ -144,7 +173,13 @@ async function assertFileExists(filePath: string, message: string): Promise<void
 }
 
 async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
+  let args: CliArgs;
+  try {
+    args = parseArgs(process.argv.slice(2));
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
   if (args.help) {
     printUsage();
     return;
@@ -166,6 +201,10 @@ async function main(): Promise<void> {
     console.error("Error: --output is required");
     process.exit(1);
   }
+  assertOutsideSkillRepository("--output", args.outputPath);
+  if (args.imagesDir) assertOutsideSkillRepository("--images-dir", args.imagesDir);
+  assertOutsideSkillRepository("--outline", args.outlinePath);
+  assertOutsideSkillRepository("--prompts", args.promptsDir);
 
   const outlineContent = await readFile(args.outlinePath, "utf8");
   const entries = parseOutline(outlineContent);
@@ -177,6 +216,7 @@ async function main(): Promise<void> {
 
   const tasks = [];
   for (const entry of entries) {
+    validateOutlineFilename(entry.filename);
     const promptFile = await findPromptFile(args.promptsDir, entry);
     if (!promptFile) {
       console.error(`Error: No prompt file found for illustration ${entry.index}`);

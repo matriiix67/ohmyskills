@@ -8,13 +8,13 @@
 
 ```bash
 # 使用图片和 markdown 文件发布（自动提取标题/内容）
-${BUN_X} ./scripts/wechat-browser.ts --markdown /tmp/post-to-wechat/YYYY-MM-DD/slug/article.md --images /tmp/post-to-wechat/YYYY-MM-DD/slug/imgs/
+${BUN_X} ./scripts/wechat-browser.ts --markdown /tmp/post-to-wechat/YYYY-MM-DD/<slug>/article.md --images /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/
 
 # 使用明确的标题和内容发布
 ${BUN_X} ./scripts/wechat-browser.ts --title "标题" --content "内容" --image img1.png --image img2.png
 
 # 保存为草稿
-${BUN_X} ./scripts/wechat-browser.ts --markdown /tmp/post-to-wechat/YYYY-MM-DD/slug/article.md --images /tmp/post-to-wechat/YYYY-MM-DD/slug/imgs/ --submit
+${BUN_X} ./scripts/wechat-browser.ts --markdown /tmp/post-to-wechat/YYYY-MM-DD/<slug>/article.md --images /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/ --submit
 ```
 
 ## 参数
@@ -71,7 +71,7 @@ ${BUN_X} ./scripts/wechat-browser.ts --markdown /tmp/post-to-wechat/YYYY-MM-DD/s
 ## 示例会话
 
 ```
-用户：/post-to-wechat --markdown /tmp/post-to-wechat/YYYY-MM-DD/slug/article.md --images /tmp/post-to-wechat/YYYY-MM-DD/slug/imgs/
+用户：/post-to-wechat --markdown /tmp/post-to-wechat/YYYY-MM-DD/<slug>/article.md --images /tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/
 
 Claude:
 1. 解析 markdown 元数据：
@@ -79,7 +79,7 @@ Claude:
    - Author: 来自 frontmatter 或默认值
 2. 从前几个段落提取内容
 3. 在临时工作区 `imgs/` 中找到图片
-4. 打开 Chrome，进入微信“图文”编辑器
+4. 打开 Chrome，进入微信“贴图（原图文）”编辑器
 5. 上传所有图片
 6. 填写标题和内容
 7. 报告：“已发布包含 7 张图片的贴图内容。”

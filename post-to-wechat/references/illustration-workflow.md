@@ -6,18 +6,18 @@
 
 | 输入类型 | 操作 |
 |----------|------|
-| 用户上传图片文件 | 复制到 `imgs/references/NN-ref-{slug}.png` |
-| 用户给出图片路径 | 复制到 `imgs/references/NN-ref-{slug}.png` |
+| 用户上传图片文件 | 复制到 `/tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/references/NN-ref-{slug}.png` |
+| 用户给出图片路径 | 复制到 `/tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/references/NN-ref-{slug}.png` |
 | 只描述了参考风格 | 不写入 prompt frontmatter；将风格说明追加到 prompt 正文 |
 
-**关键**：只有当 reference 文件确实保存到了 `imgs/references/` 目录时，才允许在 prompt frontmatter 中加入 `references` 字段。
+**关键**：只有当 reference 文件确实保存到了文章工作区的 `imgs/references/` 目录时，才允许在 prompt frontmatter 中加入 `references` 字段。
 
 保存 reference 时：
 
 1. 目视分析图片，提取颜色、风格、构图。
 2. 生成短 slug，例如 `brand-diagram`、`color-chart`。
-3. 保存为 `imgs/references/NN-ref-{slug}.png`。
-4. 同步保存说明文件 `imgs/references/NN-ref-{slug}.md`。
+3. 保存为 `/tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/references/NN-ref-{slug}.png`。
+4. 同步保存说明文件 `/tmp/post-to-wechat/YYYY-MM-DD/<slug>/imgs/references/NN-ref-{slug}.md`。
 
 **说明文件格式**（仅当文件已保存）：
 
@@ -63,7 +63,7 @@ usage: direct | style | palette
 
 ### 1.2 加载偏好配置（EXTEND.md）
 
-配图偏好统一从 `.post-to-wechat/EXTEND.md` 读取。缺少相关字段时使用默认值，不为配图再触发独立首次设置。
+配图偏好沿用 `post-to-wechat` Step 0 读取到的 EXTEND.md，读取顺序为项目 `.post-to-wechat/EXTEND.md` → `${XDG_CONFIG_HOME:-$HOME/.config}/post-to-wechat/EXTEND.md` → `$HOME/.post-to-wechat/EXTEND.md`。配置 key 大小写不敏感；缺少配图相关字段时使用默认值，不为配图再触发独立首次设置。
 
 ```bash
 # macOS、Linux、WSL、Git Bash
@@ -376,7 +376,7 @@ Reference Processing:
    - 如果 reference 的 usage 为 `direct`：包含 `--ref` 参数
    - 生成图片
 2. 每张完成后汇报："Generated X/N"
-3. 失败时重试一次；仍失败则记录并继续
+3. 失败时重试一次；仍失败则停止当前流程并报告失败图片。URL/X 自动发布不得在缺少 `cover.png` 或正文插图少于 6 张时继续。
 
 ---
 

@@ -251,12 +251,12 @@ async function parseMarkdownWithPlaceholders(
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
   const mdToWechatScript = path.join(__dirname, 'md-to-wechat.ts');
-  const args = ['-y', 'bun', mdToWechatScript, markdownPath];
+  const args = [mdToWechatScript, markdownPath];
   if (theme) args.push('--theme', theme);
   if (color) args.push('--color', color);
   if (!citeStatus) args.push('--no-cite');
 
-  const result = spawnSync('npx', args, { stdio: ['inherit', 'pipe', 'pipe'] });
+  const result = spawnSync(process.execPath, args, { stdio: ['inherit', 'pipe', 'pipe'] });
   if (result.status !== 0) {
     const stderr = result.stderr?.toString() || '';
     throw new Error(`Failed to parse markdown: ${stderr}`);
@@ -810,10 +810,13 @@ async function main(): Promise<void> {
     else if (arg === '--submit') submit = true;
     else if (arg === '--profile' && args[i + 1]) profileDir = args[++i];
     else if (arg === '--cdp-port' && args[i + 1]) cdpPort = parseInt(args[++i]!, 10);
+    else if (arg.startsWith('--')) throw new Error(`Unknown option: ${arg}`);
   }
 
   const extConfig = loadWechatExtendConfig();
   if (!author && extConfig.default_author) author = extConfig.default_author;
+  if (!theme && extConfig.default_theme) theme = extConfig.default_theme;
+  if (!color && extConfig.default_color) color = extConfig.default_color;
   if (!profileDir && extConfig.chrome_profile_path) profileDir = extConfig.chrome_profile_path;
 
   if (!markdownFile && !htmlFile && !title) { console.error('Error: --title is required (or use --markdown/--html)'); process.exit(1); }
